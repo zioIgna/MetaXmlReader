@@ -8,5 +8,9 @@ namespace LettoreXml
     {
         public GroupElem inngerGrooup;
         public List<ParamElem> paramElems = new List<ParamElem>();
+
+        public GroupElem(string name) : base(name)
+        {
+        }
     }
 }
