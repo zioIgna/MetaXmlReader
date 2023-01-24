@@ -35,22 +35,9 @@ namespace LettoreXml
                         if (paramHasValue(curLine))
                         {
                             value = getValue(curLine);
-                            if (!dict.ContainsKey(key))
-                            {
-                                dict.Add(key, value);
-                            }
-                            else
-                            {
-                                if (key.EndsWith("[]"))
-                                {
-                                    dict[key] = dict[key] + value;
-                                }
-                                else
-                                {
-                                    dict[key] = value;
-                                }
-                            }
-                        } else //caso longtext:
+                            addToDictionary(dict, key, value);
+                        }
+                        else //caso longtext:
                         {
                             value = extractFirstValueLine(curLine);
                             cdataStarted = true;
@@ -69,7 +56,7 @@ namespace LettoreXml
                     else
                     {
                         value += extractEndingValueLine(curLine);
-                        dict.Add(key, value);
+                        addToDictionary(dict, key, value);
                         value = null;
                         cdataStarted = false;
                     }
@@ -85,6 +72,25 @@ namespace LettoreXml
             foreach (var kvp in dict)
             {
                 Console.WriteLine("Key = {0}, Value = {1}", kvp.Key, kvp.Value);
+            }
+
+            static void addToDictionary(Dictionary<string, string> dict, string key, string value)
+            {
+                if (!dict.ContainsKey(key))
+                {
+                    dict.Add(key, value);
+                }
+                else
+                {
+                    if (key.EndsWith("[]"))
+                    {
+                        dict[key] = dict[key] + value;
+                    }
+                    else
+                    {
+                        dict[key] = value;
+                    }
+                }
             }
         }
 
