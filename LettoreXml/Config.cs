@@ -7,17 +7,18 @@ namespace LettoreXml
 {
     internal class Config
     {
+        string fileName;
         public Config(string fileName) {
             this.fileName = fileName;
             init();
         }
 
         Dictionary<string, string> dict = new Dictionary<string, string>();
-        string fileName;
 
-        string key = null, value = null;
+        string key = string.Empty, value = string.Empty, tempKey = string.Empty;
         bool cdataStarted = false;
         IEnumerable<string> lines;
+        string prefix = string.Empty;
         private void init()
         {
             lines = File.ReadLines(fileName);
@@ -29,24 +30,33 @@ namespace LettoreXml
                 {
                     //si può ignorare la riga
                 }
-                else if (curLine.StartsWith("<glz:"))
+                //tag di apertura di un elemento
+                else if (curLine.StartsWith(prefix = "<glz:"))
                 {
-                    curLine = curLine.Remove(0, 5);
+                    curLine = removePrefix(prefix,curLine);
                     if (curLine.StartsWith("Param"))
                     {
-                        key = getKey(curLine);
+                        tempKey = key + getKey(curLine);
                         if (paramHasValue(curLine))
                         {
                             value = getValue(curLine);
-                            addToDictionary(dict, key, value);
+                            addEntryToDictionary(tempKey);
                         }
-                        else //caso longtext:
+                        else //caso inizio longtext:
                         {
                             value = extractFirstValueLine(curLine);
                             cdataStarted = true;
                         }
 
                     }
+                    else if(curLine.StartsWith(prefix = "Group"))
+                    {
+                        key = key + getKey(curLine) + "/";
+                    }
+                }
+                else if (lineHasGroupClosingTag(curLine))
+                {
+                    popKey();
                 }
                 //caso riga di CDATA
                 else if (cdataStarted)
@@ -54,18 +64,28 @@ namespace LettoreXml
                     if (!lineHasClosingTag(curLine))
                     {
                         value += curLine;
-                        //valueSaved = false;
                     } // con chiusura elemento
                     else
                     {
                         value += extractEndingValueLine(curLine);
-                        addToDictionary(dict, key, value);
-                        value = null;
+                        addEntryToDictionary(tempKey);
                         cdataStarted = false;
                     }
                 }
             }
             printDictionary();
+        }
+
+        private bool lineHasGroupClosingTag(string line)
+        {
+            return line.StartsWith("</glz:Group");
+        }
+
+        private string removePrefix(string prefix, string line)
+        {
+            string truncLine = string.Empty;
+            truncLine = line.Remove(0, prefix.Length);
+            return truncLine;
         }
 
         private void printDictionary()
@@ -76,21 +96,39 @@ namespace LettoreXml
             }
         }
 
-        private void addToDictionary(Dictionary<string, string> dict, string key, string value)
+        private void popKey()
         {
-            if (!dict.ContainsKey(key))
+            if(!string.IsNullOrEmpty(key))
             {
-                dict.Add(key, value);
+                if(key.LastIndexOf('/') == key.Length - 1)
+                {
+                    key = key.Remove(key.Length - 1);
+                    key = key.Remove(key.LastIndexOf('/') + 1);
+                }
+            }
+        }
+
+        private bool keyExists(string groupKey, string paramKey)
+        {
+            string fullKey = groupKey + paramKey;
+            return this.dict.ContainsKey(fullKey);
+        }
+
+        private void addEntryToDictionary(string tempKey)
+        {
+            if (!dict.ContainsKey(tempKey))
+            {
+                dict.Add(tempKey, value);
             }
             else
             {
-                if (key.EndsWith("[]"))
+                if (tempKey.EndsWith("[]"))
                 {
-                    dict[key] = dict[key] + value;
+                    dict[tempKey] = dict[tempKey] + value;
                 }
                 else
                 {
-                    dict[key] = value;
+                    dict[tempKey] = value;
                 }
             }
         }
