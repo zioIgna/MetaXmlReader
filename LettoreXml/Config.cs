@@ -9,7 +9,6 @@ namespace LettoreXml
     {
         string fileName;
         string filePath;
-        List<string> files;
         public Config(string fileName) {
             this.fileName = fileName;
             filePath = Path.GetDirectoryName(fileName);
@@ -23,6 +22,12 @@ namespace LettoreXml
         IEnumerable<string> lines;
         string prefix = string.Empty;
         private void init()
+        {
+            handleFileLines(fileName);
+            printDictionary();
+        }
+
+        private void handleFileLines(string fileName)
         {
             lines = File.ReadLines(fileName);
 
@@ -56,9 +61,15 @@ namespace LettoreXml
                         }
                         else if (curLine.StartsWith("Import"))
                         {
-                            string newFileName = getRefValue(curLine, "src");
+                            string newFileName = getSourceFile(curLine);
+                            if (!string.IsNullOrEmpty(newFileName))
+                            {
+                                newFileName = Path.Combine(filePath, newFileName);
+                                handleFileLines(newFileName);
+                            }
                         }
                     }
+                    //tag di chiusura di un gruppo
                     else if (lineHasGroupClosingTag(curLine))
                     {
                         popKey();
@@ -79,7 +90,6 @@ namespace LettoreXml
                     }
                 }
             }
-            printDictionary();
         }
 
         private bool lineHasGroupClosingTag(string line)
@@ -184,6 +194,11 @@ namespace LettoreXml
         private static string getValue(string line)
         {
             return getRefValue(line, "value");
+        }
+
+        private static string getSourceFile(string line)
+        {
+            return getRefValue(line, "src");
         }
 
         //private static string getValue(string line)
