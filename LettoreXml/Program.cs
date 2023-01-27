@@ -10,7 +10,11 @@ namespace LettoreXml
         {
             Console.WriteLine("Hello World!");
 
-            string fileName = @"C:\Users\Ignazio\Desktop\xml_per_prova\myConfig.xml";
+            string fileName = "myConfig.xml";
+
+            Console.WriteLine(Path.Combine(Directory.GetCurrentDirectory(), fileName));
+
+            //string fileName = @"C:\Users\Ignazio\Desktop\xml_per_prova\myConfig.xml";
 
             Config config = new Config(fileName);
 

@@ -8,8 +8,11 @@ namespace LettoreXml
     internal class Config
     {
         string fileName;
+        string filePath;
+        List<string> files;
         public Config(string fileName) {
             this.fileName = fileName;
+            filePath = Path.GetDirectoryName(fileName);
             init();
         }
 
@@ -26,50 +29,53 @@ namespace LettoreXml
             foreach (string line in lines)
             {
                 var curLine = line.Trim();
-                if (string.IsNullOrEmpty(curLine))
+                if (!string.IsNullOrEmpty(curLine))
                 {
-                    //si può ignorare la riga
-                }
-                //tag di apertura di un elemento
-                else if (curLine.StartsWith(prefix = "<glz:"))
-                {
-                    curLine = removePrefix(prefix,curLine);
-                    if (curLine.StartsWith("Param"))
+                    //tag di apertura di un elemento
+                    if (curLine.StartsWith(prefix = "<glz:"))
                     {
-                        tempKey = key + getKey(curLine);
-                        if (paramHasValue(curLine))
+                        curLine = removePrefix(prefix, curLine);
+                        if (curLine.StartsWith("Param"))
                         {
-                            value = getValue(curLine);
-                            addEntryToDictionary(tempKey);
+                            tempKey = key + getKey(curLine);
+                            if (paramHasValue(curLine))
+                            {
+                                value = getValue(curLine);
+                                addEntryToDictionary(tempKey, value);
+                            }
+                            //caso inizio longtext:
+                            else
+                            {
+                                value = extractFirstValueLine(curLine);
+                                cdataStarted = true;
+                            }
                         }
-                        else //caso inizio longtext:
+                        else if (curLine.StartsWith("Group"))
                         {
-                            value = extractFirstValueLine(curLine);
-                            cdataStarted = true;
+                            key = key + getKey(curLine) + "/";
                         }
-
+                        else if (curLine.StartsWith("Import"))
+                        {
+                            string newFileName = getRefValue(curLine, "src");
+                        }
                     }
-                    else if(curLine.StartsWith(prefix = "Group"))
+                    else if (lineHasGroupClosingTag(curLine))
                     {
-                        key = key + getKey(curLine) + "/";
+                        popKey();
                     }
-                }
-                else if (lineHasGroupClosingTag(curLine))
-                {
-                    popKey();
-                }
-                //caso riga di CDATA
-                else if (cdataStarted)
-                {   // senza chiusura elemento
-                    if (!lineHasClosingTag(curLine))
-                    {
-                        value += curLine;
-                    } // con chiusura elemento
-                    else
-                    {
-                        value += extractEndingValueLine(curLine);
-                        addEntryToDictionary(tempKey);
-                        cdataStarted = false;
+                    //caso riga di CDATA successiva a prima riga
+                    else if (cdataStarted)
+                    {   // senza chiusura elemento
+                        if (!lineHasClosingTag(curLine))
+                        {
+                            value += curLine;
+                        } // con chiusura elemento
+                        else
+                        {
+                            value += extractEndingValueLine(curLine);
+                            addEntryToDictionary(tempKey, value);
+                            cdataStarted = false;
+                        }
                     }
                 }
             }
@@ -114,7 +120,7 @@ namespace LettoreXml
             return this.dict.ContainsKey(fullKey);
         }
 
-        private void addEntryToDictionary(string tempKey)
+        private void addEntryToDictionary(string tempKey, string value)
         {
             if (!dict.ContainsKey(tempKey))
             {
@@ -156,32 +162,56 @@ namespace LettoreXml
             return line.Contains("value=");
         }
 
+        //private static string getKey(string line)
+        //{
+        //    string param = string.Empty;
+        //    int paramStart = line.IndexOf("name=", 0);
+        //    if (paramStart > -1)
+        //    {
+        //        paramStart = paramStart + 6;
+        //        param = line.Substring(paramStart);
+        //        int paramEnd = param.IndexOf("\"");
+        //        param = param.Substring(0, paramEnd);
+        //    }
+        //    return param;
+        //}
+
         private static string getKey(string line)
         {
-            string param = string.Empty;
-            int paramStart = line.IndexOf("name=", 0);
-            if (paramStart > -1)
-            {
-                paramStart = paramStart + 6;
-                param = line.Substring(paramStart);
-                int paramEnd = param.IndexOf("\"");
-                param = param.Substring(0, paramEnd);
-            }
-            return param;
+            return getRefValue(line, "name");
         }
 
         private static string getValue(string line)
         {
-            string value = string.Empty;
-            int keyStart = line.IndexOf("value=");
-            if (keyStart > -1)
+            return getRefValue(line, "value");
+        }
+
+        //private static string getValue(string line)
+        //{
+        //    string value = string.Empty;
+        //    int keyStart = line.IndexOf("value=");
+        //    if (keyStart > -1)
+        //    {
+        //        keyStart = keyStart + 7;
+        //        value = line.Substring(keyStart);
+        //        int valueEnd = value.IndexOf("\"");
+        //        value = value.Substring(0, valueEnd);
+        //    }
+        //    return value;
+        //}
+
+        private static string getRefValue(string line, string reference)
+        {
+            string refValue = string.Empty;
+            int refValueStart = line.IndexOf(reference + "=");
+            if (refValueStart > -1)
             {
-                keyStart = keyStart + 7;
-                value = line.Substring(keyStart);
-                int valueEnd = value.IndexOf("\"");
-                value = value.Substring(0, valueEnd);
+                refValueStart = refValueStart + reference.Length + 2;
+                refValue = line.Substring(refValueStart);
+                int refValueEnd = refValue.IndexOf("\"");
+                refValue = refValue.Substring(0, refValueEnd);
             }
-            return value;
+            return refValue;
         }
     }
 }
