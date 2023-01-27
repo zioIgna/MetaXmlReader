@@ -9,18 +9,19 @@ namespace LettoreXml
     {
         string fileName;
         string filePath;
-        public Config(string fileName) {
-            this.fileName = fileName;
-            filePath = Path.GetDirectoryName(fileName);
-            init();
-        }
-
+        
         Dictionary<string, string> dict = new Dictionary<string, string>();
 
         string key = string.Empty, value = string.Empty, tempKey = string.Empty;
         bool cdataStarted = false;
         IEnumerable<string> lines;
         string prefix = string.Empty;
+        public Config(string fileName) {
+            this.fileName = fileName;
+            filePath = Path.GetDirectoryName(fileName);
+            init();
+        }
+
         private void init()
         {
             handleFileLines(fileName);
@@ -140,7 +141,7 @@ namespace LettoreXml
             {
                 if (tempKey.EndsWith("[]"))
                 {
-                    dict[tempKey] = dict[tempKey] + value;
+                    dict[tempKey] = dict[tempKey] + "," + value;
                 }
                 else
                 {
@@ -148,74 +149,46 @@ namespace LettoreXml
                 }
             }
         }
-        private static bool lineHasClosingTag(string curLine)
+        private bool lineHasClosingTag(string curLine)
         {
             return curLine.EndsWith("</glz:Param>");
         }
 
-        private static string extractEndingValueLine(string curLine)
+        private string extractEndingValueLine(string curLine)
         {
             int indOfSpecialChars = curLine.IndexOf("]]");
             string value = curLine.Substring(0, indOfSpecialChars);
             return value;
         }
 
-        private static string extractFirstValueLine(string curLine)
+        private string extractFirstValueLine(string curLine)
         {
             string value = null;
             value = curLine.Substring(curLine.IndexOf("<![CDATA[") + 9);
             return value;
         }
 
-        private static bool paramHasValue(string line)
+        private bool paramHasValue(string line)
         {
             return line.Contains("value=");
         }
 
-        //private static string getKey(string line)
-        //{
-        //    string param = string.Empty;
-        //    int paramStart = line.IndexOf("name=", 0);
-        //    if (paramStart > -1)
-        //    {
-        //        paramStart = paramStart + 6;
-        //        param = line.Substring(paramStart);
-        //        int paramEnd = param.IndexOf("\"");
-        //        param = param.Substring(0, paramEnd);
-        //    }
-        //    return param;
-        //}
-
-        private static string getKey(string line)
+        private string getKey(string line)
         {
             return getRefValue(line, "name");
         }
 
-        private static string getValue(string line)
+        private string getValue(string line)
         {
             return getRefValue(line, "value");
         }
 
-        private static string getSourceFile(string line)
+        private string getSourceFile(string line)
         {
             return getRefValue(line, "src");
         }
 
-        //private static string getValue(string line)
-        //{
-        //    string value = string.Empty;
-        //    int keyStart = line.IndexOf("value=");
-        //    if (keyStart > -1)
-        //    {
-        //        keyStart = keyStart + 7;
-        //        value = line.Substring(keyStart);
-        //        int valueEnd = value.IndexOf("\"");
-        //        value = value.Substring(0, valueEnd);
-        //    }
-        //    return value;
-        //}
-
-        private static string getRefValue(string line, string reference)
+        private string getRefValue(string line, string reference)
         {
             string refValue = string.Empty;
             int refValueStart = line.IndexOf(reference + "=");
