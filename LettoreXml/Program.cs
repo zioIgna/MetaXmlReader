@@ -12,6 +12,9 @@ namespace LettoreXml
 
             string filePath = string.Empty;
             string fileName = "myConfig.xml";
+            string query;
+            dynamic val;
+            //string valueType;
 
             Console.WriteLine(Path.Combine(Directory.GetCurrentDirectory(), fileName));
 
@@ -21,6 +24,16 @@ namespace LettoreXml
 
             Config config = new Config(fullFileName);
 
+            Console.Write("Enter key to be returned: ");
+            query = Console.ReadLine();
+
+            val = config.get(query);
+            //if(val.GetType() == typeof(int)) 
+            //{
+            //    valueType= val.GetType();
+            //}
+
+            Console.WriteLine("Returned value equals: {0} and is of type: {1}", val?? "null", val == null ? "null" : val.GetType());
         }
 
     }

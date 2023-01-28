@@ -28,6 +28,35 @@ namespace LettoreXml
             printDictionary();
         }
 
+        public dynamic get(string key)
+        {
+            if(!dict.ContainsKey(key))
+            {
+                return null;
+            }
+            int i = 0;
+            bool val = false;
+            string ret = string.Empty;
+            if (key.EndsWith("[]"))
+            {
+                string[] arr = dict[key].Split(',');
+                return arr;
+            }
+            else if (int.TryParse(dict[key], out i))
+            {
+                return i;
+            }
+            else if (Boolean.TryParse(dict[key], out val))
+            {
+                return val;
+            }
+            else
+            {
+                ret = dict[key];
+                return ret;
+            }
+        }
+
         private void handleFileLines(string fileName)
         {
             lines = File.ReadLines(fileName);
