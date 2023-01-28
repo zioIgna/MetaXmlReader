@@ -24,16 +24,15 @@ namespace LettoreXml
 
             Config config = new Config(fullFileName);
 
-            Console.Write("Enter key to be returned: ");
-            query = Console.ReadLine();
+            do
+            {
+                Console.Write("Enter key to be returned: ");
+                query = Console.ReadLine();
 
-            val = config.get(query);
-            //if(val.GetType() == typeof(int)) 
-            //{
-            //    valueType= val.GetType();
-            //}
+                val = config.get(query);
 
-            Console.WriteLine("Returned value equals: {0} and is of type: {1}", val?? "null", val == null ? "null" : val.GetType());
+                Console.WriteLine("Returned value equals: {0} and is of type: {1}", val ?? "null", val == null ? "null" : val.GetType());
+            } while (query.CompareTo("exit") != 0);
         }
 
     }
