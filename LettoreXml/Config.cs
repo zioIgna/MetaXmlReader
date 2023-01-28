@@ -11,6 +11,7 @@ namespace LettoreXml
         string filePath;
         
         Dictionary<string, string> dict = new Dictionary<string, string>();
+        CachingSystem cachingSystem = null;
 
         string key = string.Empty, value = string.Empty, tempKey = string.Empty;
         bool cdataStarted = false;
@@ -19,6 +20,7 @@ namespace LettoreXml
         public Config(string fileName) {
             this.fileName = fileName;
             filePath = Path.GetDirectoryName(fileName);
+            cachingSystem = new CachingSystem();
             init();
         }
 
@@ -59,67 +61,75 @@ namespace LettoreXml
 
         private void handleFileLines(string fileName)
         {
-            lines = File.ReadLines(fileName);
-
-            foreach (string line in lines)
+            if(cachingSystem.shouldReadFile(fileName))
             {
-                var curLine = line.Trim();
-                if (!string.IsNullOrEmpty(curLine))
+                if (!cachingSystem.upsertHashToCache(fileName))
                 {
-                    //tag di apertura di un elemento
-                    if (curLine.StartsWith(prefix = "<glz:"))
+                    throw new Exception("Could not load file hash to cache");
+                }
+                lines = File.ReadLines(fileName);
+
+                foreach (string line in lines)
+                {
+                    var curLine = line.Trim();
+                    if (!string.IsNullOrEmpty(curLine))
                     {
-                        curLine = removePrefix(prefix, curLine);
-                        if (curLine.StartsWith("Param"))
+                        //tag di apertura di un elemento
+                        if (curLine.StartsWith(prefix = "<glz:"))
                         {
-                            tempKey = key + getKey(curLine);
-                            if (paramHasValue(curLine))
+                            curLine = removePrefix(prefix, curLine);
+                            if (curLine.StartsWith("Param"))
                             {
-                                value = getValue(curLine);
-                                addEntryToDictionary(tempKey, value);
+                                tempKey = key + getKey(curLine);
+                                if (paramHasValue(curLine))
+                                {
+                                    value = getValue(curLine);
+                                    addEntryToDictionary(tempKey, value);
+                                }
+                                //caso inizio longtext:
+                                else
+                                {
+                                    value = extractFirstValueLine(curLine);
+                                    cdataStarted = true;
+                                }
                             }
-                            //caso inizio longtext:
+                            else if (curLine.StartsWith("Group"))
+                            {
+                                key = key + getKey(curLine) + "/";
+                            }
+                            else if (curLine.StartsWith("Import"))
+                            {
+                                string newFileName = getSourceFile(curLine);
+                                if (!string.IsNullOrEmpty(newFileName))
+                                {
+                                    newFileName = Path.Combine(filePath, newFileName);
+                                    handleFileLines(newFileName);
+                                }
+                            }
+                        }
+                        //tag di chiusura di un gruppo
+                        else if (lineHasGroupClosingTag(curLine))
+                        {
+                            popKey();
+                        }
+                        //caso riga di CDATA successiva a prima riga
+                        else if (cdataStarted)
+                        {   // senza chiusura elemento
+                            if (!lineHasClosingTag(curLine))
+                            {
+                                value += curLine;
+                            } // con chiusura elemento
                             else
                             {
-                                value = extractFirstValueLine(curLine);
-                                cdataStarted = true;
+                                value += extractEndingValueLine(curLine);
+                                addEntryToDictionary(tempKey, value);
+                                cdataStarted = false;
                             }
-                        }
-                        else if (curLine.StartsWith("Group"))
-                        {
-                            key = key + getKey(curLine) + "/";
-                        }
-                        else if (curLine.StartsWith("Import"))
-                        {
-                            string newFileName = getSourceFile(curLine);
-                            if (!string.IsNullOrEmpty(newFileName))
-                            {
-                                newFileName = Path.Combine(filePath, newFileName);
-                                handleFileLines(newFileName);
-                            }
-                        }
-                    }
-                    //tag di chiusura di un gruppo
-                    else if (lineHasGroupClosingTag(curLine))
-                    {
-                        popKey();
-                    }
-                    //caso riga di CDATA successiva a prima riga
-                    else if (cdataStarted)
-                    {   // senza chiusura elemento
-                        if (!lineHasClosingTag(curLine))
-                        {
-                            value += curLine;
-                        } // con chiusura elemento
-                        else
-                        {
-                            value += extractEndingValueLine(curLine);
-                            addEntryToDictionary(tempKey, value);
-                            cdataStarted = false;
                         }
                     }
                 }
             }
+            
         }
 
         private bool lineHasGroupClosingTag(string line)
