@@ -14,7 +14,7 @@ namespace LettoreXml
         CachingSystem cachingSystem = null;
 
         string key = string.Empty, value = string.Empty, tempKey = string.Empty;
-        bool cdataStarted = false;
+        bool cdataStarted = false, isFirstRun = true;
         IEnumerable<string> lines;
         string prefix = string.Empty;
         public Config(string fileName) {
@@ -32,13 +32,19 @@ namespace LettoreXml
 
         public dynamic get(string key)
         {
-            if(!dict.ContainsKey(key))
-            {
-                return null;
-            }
             int i = 0;
             bool val = false;
             string ret = string.Empty;
+            readEditedFiles(fileName);
+            //if (cachingSystem.shouldReadFile(fileName))
+            //{
+            //    cachingSystem.upsertHashToCache(fileName);
+            //    handleFileLines(fileName);
+            //}
+            if (!dict.ContainsKey(key))
+            {
+                return null;
+            }
             if (key.EndsWith("[]"))
             {
                 string[] arr = dict[key].Split(',');
@@ -59,77 +65,109 @@ namespace LettoreXml
             }
         }
 
+        private void readEditedFiles(string fileName)
+        {
+            if(cachingSystem.currFileIsNewOrChanged(fileName))
+            {
+                handleFileLines(fileName);
+            }
+            var linkedFiles = cachingSystem.getLinkedFilesList(fileName);
+            if (linkedFiles != null)
+            {
+                foreach (var linkedFile in linkedFiles)
+                {
+                    readEditedFiles(linkedFile);
+                    //if(cachingSystem.currFileIsNewOrChanged(linkedFile)) 
+                    //{
+                    //    handleFileLines(linkedFile);
+                    //}
+                }
+            }
+        }
+
         private void handleFileLines(string fileName)
         {
-            if(cachingSystem.shouldReadFile(fileName))
-            {
-                if (!cachingSystem.upsertHashToCache(fileName))
-                {
-                    throw new Exception("Could not load file hash to cache");
-                }
-                lines = File.ReadLines(fileName);
+            cachingSystem.upsertHashToCache(fileName);
+            lines = File.ReadLines(fileName);
+            //TODO eliminare writeline:
+            Console.WriteLine("Si sta leggendo il file: {0}", fileName);
 
-                foreach (string line in lines)
+            foreach (string line in lines)
+            {
+                var curLine = line.Trim();
+                if (!string.IsNullOrEmpty(curLine))
                 {
-                    var curLine = line.Trim();
-                    if (!string.IsNullOrEmpty(curLine))
+                    //tag di apertura di un elemento
+                    if (curLine.StartsWith(prefix = "<glz:"))
                     {
-                        //tag di apertura di un elemento
-                        if (curLine.StartsWith(prefix = "<glz:"))
+                        curLine = removePrefix(prefix, curLine);
+                        if (curLine.StartsWith("Param"))
                         {
-                            curLine = removePrefix(prefix, curLine);
-                            if (curLine.StartsWith("Param"))
+                            tempKey = key + getKey(curLine);
+                            if (paramHasValue(curLine))
                             {
-                                tempKey = key + getKey(curLine);
-                                if (paramHasValue(curLine))
-                                {
-                                    value = getValue(curLine);
-                                    addEntryToDictionary(tempKey, value);
-                                }
-                                //caso inizio longtext:
-                                else
-                                {
-                                    value = extractFirstValueLine(curLine);
-                                    cdataStarted = true;
-                                }
+                                value = getValue(curLine);
+                                addEntryToDictionary(tempKey, value);
                             }
-                            else if (curLine.StartsWith("Group"))
-                            {
-                                key = key + getKey(curLine) + "/";
-                            }
-                            else if (curLine.StartsWith("Import"))
-                            {
-                                string newFileName = getSourceFile(curLine);
-                                if (!string.IsNullOrEmpty(newFileName))
-                                {
-                                    newFileName = Path.Combine(filePath, newFileName);
-                                    handleFileLines(newFileName);
-                                }
-                            }
-                        }
-                        //tag di chiusura di un gruppo
-                        else if (lineHasGroupClosingTag(curLine))
-                        {
-                            popKey();
-                        }
-                        //caso riga di CDATA successiva a prima riga
-                        else if (cdataStarted)
-                        {   // senza chiusura elemento
-                            if (!lineHasClosingTag(curLine))
-                            {
-                                value += curLine;
-                            } // con chiusura elemento
+                            //caso inizio longtext:
                             else
                             {
-                                value += extractEndingValueLine(curLine);
-                                addEntryToDictionary(tempKey, value);
-                                cdataStarted = false;
+                                value = extractFirstValueLine(curLine);
+                                cdataStarted = true;
                             }
+                        }
+                        else if (curLine.StartsWith("Group"))
+                        {
+                            key = key + getKey(curLine) + "/";
+                        }
+                        else if (curLine.StartsWith("Import"))
+                        {
+                            string newFileName = getSourceFile(curLine);
+                            if (!string.IsNullOrEmpty(newFileName))
+                            {
+                                newFileName = Path.Combine(filePath, newFileName);
+                                if (cachingSystem.currFileIsNewOrChanged(newFileName))
+                                {
+                                    handleFileLines(newFileName);
+                                    cachingSystem.upsertLinkToCache(fileName, newFileName);
+                                }
+                                //if (isFirstRun)
+                                //{
+                                //    isFirstRun = false;
+                                //}
+                            }
+                        }
+                    }
+                    //tag di chiusura di un gruppo
+                    else if (lineHasGroupClosingTag(curLine))
+                    {
+                        popKey();
+                    }
+                    //caso riga di CDATA successiva a prima riga
+                    else if (cdataStarted)
+                    {   // senza chiusura elemento
+                        if (!lineHasClosingTag(curLine))
+                        {
+                            value += curLine;
+                        } // con chiusura elemento
+                        else
+                        {
+                            value += extractEndingValueLine(curLine);
+                            addEntryToDictionary(tempKey, value);
+                            cdataStarted = false;
                         }
                     }
                 }
             }
-            
+            //if(cachingSystem.shouldReadFile(fileName))
+            //{
+            //    cachingSystem.upsertHashToCache(fileName);
+            //if (!)
+            //{
+            //    throw new Exception("Could not load file hash to cache");
+            //}
+            //}
+
         }
 
         private bool lineHasGroupClosingTag(string line)

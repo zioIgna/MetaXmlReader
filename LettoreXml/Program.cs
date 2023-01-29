@@ -26,7 +26,7 @@ namespace LettoreXml
 
             do
             {
-                Console.Write("Enter key to be returned: ");
+                Console.Write("Enter key to be returned or type 'exit': ");
                 query = Console.ReadLine();
 
                 val = config.get(query);
