@@ -117,7 +117,7 @@ namespace LettoreXml
             {
                 links = new HashSet<string>();
                 links.Add(newFileName);
-                var entry = new DictionaryEntry(fileName, links);
+                localCache.Add(fileName,links);
             }
             else
             {
