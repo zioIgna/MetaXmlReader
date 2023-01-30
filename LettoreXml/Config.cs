@@ -105,6 +105,7 @@ namespace LettoreXml
             }
             else
             {
+                //il caso lunghezza == 1 si può eliminare
                 if(remainingLinks.Length == 1)
                 {
                     return anyFileChanged(remainingLinks[0]);

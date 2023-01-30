@@ -22,12 +22,14 @@ namespace LettoreXml
             cacheItemPolicy = new CacheItemPolicy() { AbsoluteExpiration = DateTime.MaxValue };
         }
 
+        //TODO remove this method
         public bool shouldReadFile(string fileName)
         {
             byte[]  hash = calculateMD5(fileName);
             return !hashesCache.Contains(fileName) || !filesTheSame((byte[])hashesCache.Get(fileName), hash) ;
         }
 
+        //TODO remove this method
         public bool currFileIsNewOrChanged(string fileName)
         {
             byte[]  hash = calculateMD5(fileName);
@@ -35,6 +37,7 @@ namespace LettoreXml
             return !hashesCache.Contains(fileName) || !filesTheSame((byte[])hashesCache.Get(fileName), hash);
         }
 
+        //TODO remove this method
         public bool currFileIsNew(string fileName)
         {
             byte[] hash = calculateMD5(fileName);
