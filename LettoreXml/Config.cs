@@ -12,7 +12,7 @@ namespace LettoreXml
         string filePath;
         
         Dictionary<string, string> dict = new Dictionary<string, string>();
-        CachingSystem cachingSystem = null;
+        CachingSystem cachingSystem = new CachingSystem();
 
         string key = string.Empty, value = string.Empty, tempKey = string.Empty;
         bool cdataStarted = false;
@@ -21,13 +21,13 @@ namespace LettoreXml
         public Config(string fileName) {
             this.fileName = fileName;
             filePath = Path.GetDirectoryName(fileName);
-            cachingSystem = new CachingSystem();
             init();
         }
 
         private void init()
         {
             handleFileLines(fileName);
+            cachingSystem.regenConnectionsCache();
             printDictionary();
         }
 
@@ -40,6 +40,7 @@ namespace LettoreXml
             {
                 Console.WriteLine("File modificato");
                 handleFileLines(fileName);
+                cachingSystem.regenConnectionsCache();
             }
             if (!dict.ContainsKey(key))
             {
@@ -160,7 +161,8 @@ namespace LettoreXml
                             {
                                 newFileName = Path.Combine(filePath, newFileName);
                                 handleFileLines(newFileName);
-                                cachingSystem.upsertLinkToCache(fileName, newFileName);
+                                //cachingSystem.upsertLinkToCache(fileName, newFileName);
+                                cachingSystem.upsertLinkToLocalCache(fileName, newFileName);
                             }
                         }
                     }

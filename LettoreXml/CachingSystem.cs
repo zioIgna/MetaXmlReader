@@ -1,5 +1,6 @@
 ﻿using Microsoft.Extensions.Caching.Memory;
 using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -14,12 +15,14 @@ namespace LettoreXml
         private System.Runtime.Caching.MemoryCache hashesCache;
         private System.Runtime.Caching.MemoryCache connectionsCache;
         CacheItemPolicy cacheItemPolicy;
+        Dictionary<string, HashSet<string>> localCache;
         //private byte[] hash;
         public CachingSystem()
         {
             hashesCache = new System.Runtime.Caching.MemoryCache("HaschesCache");
             connectionsCache = new System.Runtime.Caching.MemoryCache("ConnectionsCache");
             cacheItemPolicy = new CacheItemPolicy() { AbsoluteExpiration = DateTime.MaxValue };
+            localCache = new Dictionary<string, HashSet<string>>();
         }
 
         //TODO remove this method
@@ -102,8 +105,42 @@ namespace LettoreXml
                 linksSet.Add(newFileName);
                 //TODO: remove console writeline
                 Console.WriteLine(String.Join(",",linksSet));
+                //TODO: check if set operation is necessary
                 connectionsCache.Set(new CacheItem(fileName, linksSet), cacheItemPolicy);
             }
+        }
+
+        internal void upsertLinkToLocalCache(string fileName, string newFileName)
+        {
+            HashSet<string> links;
+            if (!localCache.ContainsKey(fileName))
+            {
+                links = new HashSet<string>();
+                links.Add(newFileName);
+                var entry = new DictionaryEntry(fileName, links);
+            }
+            else
+            {
+                bool success = localCache.TryGetValue(fileName, out links);
+                links.Add(newFileName);
+            }
+        }
+
+        private void loadLinksToCache()
+        {
+            foreach (var item in localCache)
+            {
+                var cacheItem = new CacheItem(item.Key, item.Value);
+                connectionsCache.Add(cacheItem, cacheItemPolicy);
+            }
+        }
+
+        internal void regenConnectionsCache()
+        {
+            connectionsCache.Dispose();
+            connectionsCache = new System.Runtime.Caching.MemoryCache("ConnectionsCache");
+            loadLinksToCache();
+            localCache.Clear();
         }
 
         private byte[] calculateMD5(string filename)
