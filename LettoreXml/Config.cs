@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Text;
 using System.IO;
+using System.Linq;
 
 namespace LettoreXml
 {
@@ -14,7 +15,7 @@ namespace LettoreXml
         CachingSystem cachingSystem = null;
 
         string key = string.Empty, value = string.Empty, tempKey = string.Empty;
-        bool cdataStarted = false, isFirstRun = true;
+        bool cdataStarted = false;
         IEnumerable<string> lines;
         string prefix = string.Empty;
         public Config(string fileName) {
@@ -35,12 +36,11 @@ namespace LettoreXml
             int i = 0;
             bool val = false;
             string ret = string.Empty;
-            readEditedFiles(fileName);
-            //if (cachingSystem.shouldReadFile(fileName))
-            //{
-            //    cachingSystem.upsertHashToCache(fileName);
-            //    handleFileLines(fileName);
-            //}
+            if (anyFileChanged(fileName))
+            {
+                Console.WriteLine("File modificato");
+                handleFileLines(fileName);
+            }
             if (!dict.ContainsKey(key))
             {
                 return null;
@@ -65,22 +65,54 @@ namespace LettoreXml
             }
         }
 
-        private void readEditedFiles(string fileName)
+        private bool anyFileChanged(string fileName)
         {
-            if(cachingSystem.currFileIsNewOrChanged(fileName))
+            HashSet<string> linkedFiles;
+            if (cachingSystem.currFileChanged(fileName))
             {
-                handleFileLines(fileName);
+                return true;
             }
-            var linkedFiles = cachingSystem.getLinkedFilesList(fileName);
-            if (linkedFiles != null)
+            else
             {
-                foreach (var linkedFile in linkedFiles)
+                linkedFiles = cachingSystem.getLinkedFilesList(fileName);
+                if (linkedFiles == null)
                 {
-                    readEditedFiles(linkedFile);
-                    //if(cachingSystem.currFileIsNewOrChanged(linkedFile)) 
-                    //{
-                    //    handleFileLines(linkedFile);
-                    //}
+                    return false;
+                }
+                else
+                {
+                    string[] linkedFilesArr = new string[linkedFiles.Count];
+                    linkedFiles.CopyTo(linkedFilesArr);
+                    string[] remainingLinks = linkedFilesArr.Skip(1).ToArray();
+                    bool tempRes = checkList(remainingLinks);
+                    if (cachingSystem.currFileChanged(linkedFilesArr[0]))
+                    {
+                        return true;
+                    }
+                    else
+                    {
+                        return anyFileChanged(linkedFilesArr[0]) || tempRes;
+                    }
+                }
+            }
+        }
+
+        private bool checkList(string[] remainingLinks)
+        {
+            if (remainingLinks.Length == 0)
+            {
+                return false;
+            }
+            else
+            {
+                if(remainingLinks.Length == 1)
+                {
+                    return anyFileChanged(remainingLinks[0]);
+                }
+                else
+                {
+                    bool tempRes = checkList(remainingLinks.Skip(1).ToArray());
+                    return anyFileChanged(remainingLinks[0]) || tempRes;
                 }
             }
         }
@@ -126,15 +158,8 @@ namespace LettoreXml
                             if (!string.IsNullOrEmpty(newFileName))
                             {
                                 newFileName = Path.Combine(filePath, newFileName);
-                                if (cachingSystem.currFileIsNewOrChanged(newFileName))
-                                {
-                                    handleFileLines(newFileName);
-                                    cachingSystem.upsertLinkToCache(fileName, newFileName);
-                                }
-                                //if (isFirstRun)
-                                //{
-                                //    isFirstRun = false;
-                                //}
+                                handleFileLines(newFileName);
+                                cachingSystem.upsertLinkToCache(fileName, newFileName);
                             }
                         }
                     }
@@ -159,15 +184,6 @@ namespace LettoreXml
                     }
                 }
             }
-            //if(cachingSystem.shouldReadFile(fileName))
-            //{
-            //    cachingSystem.upsertHashToCache(fileName);
-            //if (!)
-            //{
-            //    throw new Exception("Could not load file hash to cache");
-            //}
-            //}
-
         }
 
         private bool lineHasGroupClosingTag(string line)
@@ -200,12 +216,6 @@ namespace LettoreXml
                     key = key.Remove(key.LastIndexOf('/') + 1);
                 }
             }
-        }
-
-        private bool keyExists(string groupKey, string paramKey)
-        {
-            string fullKey = groupKey + paramKey;
-            return this.dict.ContainsKey(fullKey);
         }
 
         private void addEntryToDictionary(string tempKey, string value)

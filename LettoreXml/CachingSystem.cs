@@ -14,7 +14,7 @@ namespace LettoreXml
         private System.Runtime.Caching.MemoryCache hashesCache;
         private System.Runtime.Caching.MemoryCache connectionsCache;
         CacheItemPolicy cacheItemPolicy;
-        private byte[] hash;
+        //private byte[] hash;
         public CachingSystem()
         {
             hashesCache = new System.Runtime.Caching.MemoryCache("HaschesCache");
@@ -24,25 +24,30 @@ namespace LettoreXml
 
         public bool shouldReadFile(string fileName)
         {
-            hash = calculateMD5(fileName);
+            byte[]  hash = calculateMD5(fileName);
             return !hashesCache.Contains(fileName) || !filesTheSame((byte[])hashesCache.Get(fileName), hash) ;
         }
 
         public bool currFileIsNewOrChanged(string fileName)
         {
-            hash = calculateMD5(fileName);
+            byte[]  hash = calculateMD5(fileName);
             Console.WriteLine("Upserted item, Key: {0} hash: {1}", fileName.Split("\\").Last(), hashToString(hash));
             return !hashesCache.Contains(fileName) || !filesTheSame((byte[])hashesCache.Get(fileName), hash);
         }
 
-        //private bool linkedFilesChanged(string fileName)
-        //{
-        //    HashSet<string> linkedFiles;
-        //    if(connectionsCache.GetCacheItem(fileName) != null && (linkedFiles = (HashSet<string>)connectionsCache.GetCacheItem(fileName).Value) != null)
-        //    {
-                
-        //    }
-        //}
+        public bool currFileIsNew(string fileName)
+        {
+            byte[] hash = calculateMD5(fileName);
+            Console.WriteLine("Inserting new item for file: {0}", fileName);
+            return !hashesCache.Contains(fileName);
+        }
+
+        public bool currFileChanged(string fileName)
+        {
+            byte[] hash = calculateMD5(fileName);
+            Console.WriteLine("Upserting item, Key: {0} hash: {1}", fileName.Split("\\").Last(), hashToString(hash));
+            return !filesTheSame((byte[])hashesCache.Get(fileName), hash);
+        }
 
         public HashSet<string> getLinkedFilesList(string fileName)
         {
@@ -52,15 +57,15 @@ namespace LettoreXml
                 linkedFiles = (HashSet<string>)connectionsCache.GetCacheItem(fileName).Value;
             }
             //TODO remove from here
-            Console.WriteLine("Elenco dei files collegati a {0}", fileName.Split('\\').Last());
-            if (linkedFiles != null)
-            {
-                //Console.WriteLine(String.Join(", ", linkedFiles));
-                foreach (var linkedFile in linkedFiles)
-                {
-                    Console.Write(linkedFile.Split("\\").Last() + ", ");
-                }
-            }
+            //Console.WriteLine("Elenco dei files collegati a {0}", fileName.Split('\\').Last());
+            //if (linkedFiles != null)
+            //{
+            //    //Console.WriteLine(String.Join(", ", linkedFiles));
+            //    foreach (var linkedFile in linkedFiles)
+            //    {
+            //        Console.Write(linkedFile.Split("\\").Last() + ", ");
+            //    }
+            //}
             // to here
             return linkedFiles;
         }
@@ -68,21 +73,12 @@ namespace LettoreXml
         public void upsertHashToCache(string fileName)
         {
             //bool outcome = false;
-            hash = calculateMD5(fileName);
+            byte[] hash = calculateMD5(fileName);
             
             var cacheItem = new CacheItem(fileName, hash);
             hashesCache.Set(cacheItem, cacheItemPolicy);
             //TODO remove writeline
             Console.WriteLine("Upserted item, Key: {0} hash: {1}", fileName.Split('\\').Last(), hashToString(hash));
-            //if (!cache.Contains(fileName))
-            //{
-            //    outcome = cache.Add(cacheItem, cacheItemPolicy);
-            //}
-            //else
-            //{
-            //    cache.Set(cacheItem, cacheItemPolicy);
-            //}
-            //return outcome;
         }
 
         private string hashToString(byte[] hash)
@@ -115,33 +111,7 @@ namespace LettoreXml
                 {
                     var hash = md5.ComputeHash(stream);
                     return hash;
-                    //return BitConverter.ToString(hash).Replace("-", "").ToLowerInvariant();
                 }
-            }
-        }
-
-        private byte[] fileToBytes(string filePath)
-        {
-            using (FileStream fsSource = new FileStream(filePath, FileMode.Open, FileAccess.Read))
-            {
-                // Read the source file into a byte array.
-                byte[] bytes = new byte[fsSource.Length];
-                int numBytesToRead = (int)fsSource.Length;
-                int numBytesRead = 0;
-                while (numBytesToRead > 0)
-                {
-                    // Read may return anything from 0 to numBytesToRead.
-                    int n = fsSource.Read(bytes, numBytesRead, numBytesToRead);
-
-                    // Break when the end of the file is reached.
-                    if (n == 0)
-                        break;
-
-                    numBytesRead += n;
-                    numBytesToRead -= n;
-                }
-
-                return bytes;
             }
         }
 
