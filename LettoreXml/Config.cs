@@ -85,14 +85,14 @@ namespace LettoreXml
                     linkedFiles.CopyTo(linkedFilesArr);
                     string[] remainingLinks = linkedFilesArr.Skip(1).ToArray();
                     bool tempRes = checkList(remainingLinks);
-                    if (cachingSystem.currFileChanged(linkedFilesArr[0]))
-                    {
-                        return true;
-                    }
-                    else
-                    {
+                    //if (cachingSystem.currFileChanged(linkedFilesArr[0]))
+                    //{
+                    //    return true;
+                    //}
+                    //else
+                    //{
+                    //}
                         return anyFileChanged(linkedFilesArr[0]) || tempRes;
-                    }
                 }
             }
         }
