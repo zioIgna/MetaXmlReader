@@ -11,7 +11,7 @@ namespace LettoreXml
             Console.WriteLine("Hello World!");
 
             string filePath = string.Empty;
-            string fileName = "myConfig.xml";
+            string fileName = "innerFolder/myConfig.xml";
             string query;
             dynamic val;
             //string valueType;
@@ -22,7 +22,7 @@ namespace LettoreXml
 
             //string fileName = @"C:\Users\Ignazio\Desktop\xml_per_prova\myConfig.xml";
 
-            Config config = new Config(fullFileName);
+            Config config = new Config(fileName); //fullName
 
             do
             {
