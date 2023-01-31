@@ -1,6 +1,5 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Text;
 using System.IO;
 using System.Linq;
 
@@ -18,6 +17,7 @@ namespace LettoreXml
         bool cdataStarted = false;
         IEnumerable<string> lines;
         string prefix = string.Empty;
+
         public Config(string fileName) {
             this.fileName = fileName;
             filePath = Path.GetDirectoryName(fileName);
@@ -28,7 +28,6 @@ namespace LettoreXml
         {
             handleFileLines(fileName);
             cachingSystem.regenConnectionsCache();
-            printDictionary();
         }
 
         public dynamic get(string key)
@@ -106,16 +105,8 @@ namespace LettoreXml
             }
             else
             {
-                //il caso lunghezza == 1 si può eliminare
-                if(remainingLinks.Length == 1)
-                {
-                    return anyFileChanged(remainingLinks[0]);
-                }
-                else
-                {
-                    bool tempRes = checkList(remainingLinks.Skip(1).ToArray());
-                    return anyFileChanged(remainingLinks[0]) || tempRes;
-                }
+                bool tempRes = checkList(remainingLinks.Skip(1).ToArray());
+                return anyFileChanged(remainingLinks[0]) || tempRes;
             }
         }
 
@@ -123,8 +114,6 @@ namespace LettoreXml
         {
             cachingSystem.upsertHashToCache(fileName);
             lines = File.ReadLines(fileName);
-            //TODO eliminare writeline:
-            Console.WriteLine("Si sta leggendo il file: {0}", fileName);
 
             foreach (string line in lines)
             {
@@ -161,7 +150,6 @@ namespace LettoreXml
                             {
                                 newFileName = Path.Combine(filePath, newFileName);
                                 handleFileLines(newFileName);
-                                //cachingSystem.upsertLinkToCache(fileName, newFileName);
                                 cachingSystem.upsertLinkToLocalCache(fileName, newFileName);
                             }
                         }
@@ -201,14 +189,6 @@ namespace LettoreXml
             return truncLine;
         }
 
-        private void printDictionary()
-        {
-            foreach (var kvp in dict)
-            {
-                Console.WriteLine("Key = {0}, Value = {1}", kvp.Key, kvp.Value);
-            }
-        }
-
         private void popKey()
         {
             if(!string.IsNullOrEmpty(key))
@@ -239,6 +219,7 @@ namespace LettoreXml
                 }
             }
         }
+        
         private bool lineHasClosingTag(string curLine)
         {
             return curLine.EndsWith("</glz:Param>");
@@ -253,7 +234,7 @@ namespace LettoreXml
 
         private string extractFirstValueLine(string curLine)
         {
-            string value = null;
+            string value = string.Empty;
             value = curLine.Substring(curLine.IndexOf("<![CDATA[") + 9);
             return value;
         }
