@@ -33,29 +33,29 @@ namespace LettoreXml
 
         public dynamic get(string key)
         {
-            int i = 0;
-            bool val = false;
-            string ret = string.Empty;
+            int i;
+            bool val;
+            string ret;
             if (anyFileChanged(fileName))
             {
-                Console.WriteLine("File modificato");
                 handleFileLines(fileName);
                 cachingSystem.regenConnectionsCache();
+            }
+            if (dict.ContainsKey(key + "[]"))
+            {
+                key = key + "[]";
+                string[] arr = dict[key].Split(',');
+                return arr;
             }
             if (!dict.ContainsKey(key))
             {
                 return null;
             }
-            if (key.EndsWith("[]"))
-            {
-                string[] arr = dict[key].Split(',');
-                return arr;
-            }
-            else if (int.TryParse(dict[key], out i))
+            if (int.TryParse(dict[key], out i))
             {
                 return i;
             }
-            else if (Boolean.TryParse(dict[key], out val))
+            if (Boolean.TryParse(dict[key], out val))
             {
                 return val;
             }
