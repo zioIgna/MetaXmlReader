@@ -6,20 +6,24 @@ using System.Drawing;
 using System.Collections;
 using System.Threading;
 using System.IO;
+using System.Diagnostics;
 
 namespace LettoreXml
 {
     internal class ImageResize
     {
         private readonly Config config;
-        private string method;
+        private string resizeDefinition;
         private string imgPath;
         private Image originalImage;
         private string selectedDimName;
+        private dynamic dynSelectedWidth;
+        private dynamic dynSelectedHeight;
         private int selectedWidth;
         private int selectedHeight;
         private bool selectedCrop;
         private float imgWidthOverHeight;
+        private string inputFolderPath;
         private string outputFolderPath;
         private const string WIDTH = "width";
         private const string HEIGHT = "height";
@@ -30,113 +34,155 @@ namespace LettoreXml
             this.config = config;
         }
 
-        public string resize(string fileName, string dimName)
+        public void resize(string fileName, string resizeDefinition)
         {
-            if (string.IsNullOrEmpty(dimName) || string.IsNullOrEmpty(fileName))
-            {
-                return string.Empty;
-            }
-            loadOriginalImage(fileName);
-            setDimensionsRatio();
-
+            bool checksOk = inputParamsOk(fileName, resizeDefinition);
         }
 
-        private void loadOriginalImage(string imgName)
+        private bool inputParamsOk(string fileName, string resizeDefinition)
         {
-            string sourceFolder = config.get("archive");
-
-            if (!string.IsNullOrEmpty(sourceFolder))
-            {
-                string fullPath = Path.Combine(sourceFolder, imgName);
-                originalImage = Image.FromFile(fullPath);
-            }
-            //TODO decidere cosa fare in caso di sourcefolder NULL
+            return
+                !string.IsNullOrEmpty(fileName)
+                && !string.IsNullOrEmpty(resizeDefinition)
+                && loadArchiveRefOk()
+                && loadCacheRefOk()
+                && loadCropRefOk()
+                && loadWidthRefOk()
+                && loadHeightRefOk()
+                && loadOriginalImageOk(fileName)
+                && setDimensionsRatioOk()
+                && calculateOutputDimsOk()
+                && loadResizeDefinitionOk(resizeDefinition);
         }
 
-        private void setDimensionsRatio()
+        private bool loadArchiveRefOk()
         {
-            imgWidthOverHeight = this.originalImage.Width/this.originalImage.Height;
-        }
-
-
-        private string getArchive()
-        {
-            dynamic retVal = config.get("archive");
-            if (retVal != null)
+            string sourceFolder;
+            if((sourceFolder = config.get("archive")) != null)
             {
-                return (string) retVal;
+                inputFolderPath= sourceFolder;
+                return true;
             }
             else
             {
-                return null;
+                return false;
             }
         }
 
-        private void setDimensionName(string dimName)
+        private bool loadCacheRefOk()
         {
-            selectedDimName= dimName;
+            string destFolder;
+            if((destFolder = config.get("cache"))!= null)
+            {
+                outputFolderPath= destFolder;
+                return true;
+            }
+            else
+            {
+                return false;
+            }
         }
 
-        private void calculateDims()
+        private bool loadCropRefOk()
         {
-            dynamic width = getFullKeyMeasure(WIDTH);
-            dynamic height = getFullKeyMeasure(HEIGHT);
-            dynamic crop = getFullKeyMeasure(CROP);
-            if(width!= null && height != null && crop != null)
+            dynamic checkCrop = getFullKeyMeasure(CROP);
+            if (checkCrop != null)
             {
-                selectedCrop = crop;
-                if(dimensionIsNumeric(width))
+                selectedCrop = checkCrop;
+                return true;
+            }
+            else
+            {
+                return false;
+            }
+        }
+
+        private bool loadWidthRefOk()
+        {
+            dynamic checkWidth= getFullKeyMeasure(WIDTH);
+            if(checkWidth != null)
+            {
+                dynSelectedWidth = checkWidth;
+                return true;
+            }
+            else
+            {
+                return false;
+            }
+        }
+
+        private bool loadHeightRefOk()
+        {
+            dynamic checkHeight = getFullKeyMeasure(HEIGHT);
+            if(checkHeight != null)
+            {
+                dynSelectedHeight = checkHeight;
+                return true;
+            }
+            else
+            {
+                return false;
+            }
+        }
+
+        private bool calculateOutputDimsOk()
+        {
+            if (dimensionIsNumeric(dynSelectedWidth))
+            {
+                selectedWidth = dynSelectedWidth;
+                if (selectedWidth == 0)
                 {
-                    selectedWidth= width;
-                    if(dimensionIsNumeric(height)) 
-                    {
-                        selectedHeight= height;
-                    }
-                    else
-                    {
-                        interpolateHeight();
-                    }
-                } else 
+                    return false;
+                }
+                if (dimensionIsNumeric(dynSelectedHeight))
                 {
-                    selectedHeight= height;
-                    interpolateWidth();
+                    selectedHeight= dynSelectedHeight;
+                    return selectedHeight > 0;
+                }
+                else
+                {
+                    return setInterpolatedHeight() > 0;
                 }
             }
             else
             {
-                //TODO decidere come gestire il caso di valori null
-                throw new ArgumentNullException("width or height or crop is null");
+                selectedHeight = dynSelectedHeight;
+                if (selectedHeight == 0)
+                    return false;
+                return setInterpolatedWidth() > 0;
             }
         }
 
-        private void interpolateWidth()
+        private bool loadOriginalImageOk(string imgName)
         {
-            selectedWidth = (int)Math.Round(selectedHeight * imgWidthOverHeight, 0);
+            string fullPath = Path.Combine(inputFolderPath, imgName);
+            if (File.Exists(fullPath))
+            {
+                originalImage = Image.FromFile(fullPath);
+                return true;
+            }
+            else
+            {
+                return false;
+            }
         }
 
-        private void interpolateHeight()
+        private bool loadResizeDefinitionOk(string resizeDefinition)
         {
-            selectedHeight = (int)Math.Round(selectedWidth / imgWidthOverHeight,0);
+            if (!string.IsNullOrEmpty(resizeDefinition)) 
+            {
+                this.resizeDefinition = resizeDefinition;
+                return true;
+            }
+            else
+            {
+                return false;
+            }
         }
-
-        //private bool isValidDimensionName()
-        //{
-        //    return getArchive
-        //}
-
-        private void setDimensionWidth()
+        
+        private bool setDimensionsRatioOk()
         {
-            selectedWidth = (int) config.get(selectedDimName + "/" + "width");
-        }
-
-        private void setDimensionHeight()
-        {
-            selectedHeight = (int) config.get(selectedHeight+ "/" + "height");
-        }
-
-        private bool isNullValueDimension(string dimName)
-        {
-            return config.get(selectedDimName + "/" + dimName) == null;
+            return (imgWidthOverHeight = this.originalImage.Width / this.originalImage.Height) > 0;
         }
 
         private bool dimensionIsNumeric(dynamic val)
@@ -144,27 +190,74 @@ namespace LettoreXml
             return (val.GetType() == typeof(int));
         }
 
-        private bool dimensionNotNumeric(dynamic val)
+        private int setInterpolatedWidth()
         {
-            return (val.GetType() == typeof(string));
+            selectedWidth = (int)Math.Round(selectedHeight * imgWidthOverHeight, 0);
+            return selectedWidth;
         }
 
-        private int getNumericVal(string query)
+        private int setInterpolatedHeight()
         {
-            dynamic val = config.get(selectedDimName + "/" + query);
-            if (val != null)
-            {
-                return (int)val;
-            }
-            else
-            {
-                return -1;
-            }
+            selectedHeight = (int)Math.Round(selectedWidth / imgWidthOverHeight, 0);
+            return selectedHeight;
         }
 
         private dynamic getFullKeyMeasure(string query)
         {
             return config.get(selectedDimName + "/" + query);
         }
+
+
+
+        //private void setDimensionName(string dimName)
+        //{
+        //    selectedDimName= dimName;
+        //}
+
+        //private void setDimensionWidth()
+        //{
+        //    selectedWidth = (int) config.get(selectedDimName + "/" + "width");
+        //}
+
+        //private void setDimensionHeight()
+        //{
+        //    selectedHeight = (int) config.get(selectedHeight+ "/" + "height");
+        //}
+
+        //private bool isNullValueDimension(string dimName)
+        //{
+        //    return config.get(selectedDimName + "/" + dimName) == null;
+        //}
+
+        //private bool dimensionNotNumeric(dynamic val)
+        //{
+        //    return (val.GetType() == typeof(string));
+        //}
+
+        //private int getNumericVal(string query)
+        //{
+        //    dynamic val = config.get(selectedDimName + "/" + query);
+        //    if (val != null)
+        //    {
+        //        return (int)val;
+        //    }
+        //    else
+        //    {
+        //        return -1;
+        //    }
+        //}
+
+        //private string getArchive()
+        //{
+        //    dynamic retVal = config.get("archive");
+        //    if (retVal != null)
+        //    {
+        //        return (string) retVal;
+        //    }
+        //    else
+        //    {
+        //        return null;
+        //    }
+        //}
     }
 }
