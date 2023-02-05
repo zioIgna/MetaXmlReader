@@ -14,9 +14,10 @@ namespace LettoreXml
     {
         private readonly Config config;
         private string resizeDefinition;
+        private string sourceImgName;
         private string imgPath;
         private Image originalImage;
-        private string selectedDimName;
+        //private string selectedDimName;
         private dynamic dynSelectedWidth;
         private dynamic dynSelectedHeight;
         private int selectedWidth;
@@ -28,6 +29,8 @@ namespace LettoreXml
         private const string WIDTH = "width";
         private const string HEIGHT = "height";
         private const string CROP = "crop";
+        private const string CACHE = "imageCache";
+        private const string ARCHIVE = "archive";
 
         public ImageResize(Config config)
         {
@@ -42,7 +45,8 @@ namespace LettoreXml
         private bool inputParamsOk(string fileName, string resizeDefinition)
         {
             return
-                !string.IsNullOrEmpty(fileName)
+                loadSourceImgNameOk(fileName)
+                && loadResizeDefinitionOk(resizeDefinition)
                 && !string.IsNullOrEmpty(resizeDefinition)
                 && loadArchiveRefOk()
                 && loadCacheRefOk()
@@ -52,13 +56,32 @@ namespace LettoreXml
                 && loadOriginalImageOk(fileName)
                 && setDimensionsRatioOk()
                 && calculateOutputDimsOk()
-                && loadResizeDefinitionOk(resizeDefinition);
+                ;
+        }
+
+        private bool loadSourceImgNameOk(string fileName)
+        {
+            if (!string.IsNullOrEmpty(fileName))
+            {
+                sourceImgName = fileName;
+                return true;
+            } return false;
+        }
+
+        private bool loadResizeDefinitionOk(string resizeDefinition)
+        {
+            if (!string.IsNullOrEmpty(resizeDefinition))
+            {
+                this.resizeDefinition = resizeDefinition;
+                return true;
+            }
+            return false;
         }
 
         private bool loadArchiveRefOk()
         {
             string sourceFolder;
-            if((sourceFolder = config.get("archive")) != null)
+            if((sourceFolder = config.get(ARCHIVE)) != null)
             {
                 inputFolderPath= sourceFolder;
                 return true;
@@ -72,7 +95,7 @@ namespace LettoreXml
         private bool loadCacheRefOk()
         {
             string destFolder;
-            if((destFolder = config.get("cache"))!= null)
+            if((destFolder = config.get(CACHE))!= null)
             {
                 outputFolderPath= destFolder;
                 return true;
@@ -166,23 +189,10 @@ namespace LettoreXml
                 return false;
             }
         }
-
-        private bool loadResizeDefinitionOk(string resizeDefinition)
-        {
-            if (!string.IsNullOrEmpty(resizeDefinition)) 
-            {
-                this.resizeDefinition = resizeDefinition;
-                return true;
-            }
-            else
-            {
-                return false;
-            }
-        }
         
         private bool setDimensionsRatioOk()
         {
-            return (imgWidthOverHeight = this.originalImage.Width / this.originalImage.Height) > 0;
+            return (imgWidthOverHeight = (float)this.originalImage.Width / this.originalImage.Height) > 0;
         }
 
         private bool dimensionIsNumeric(dynamic val)
@@ -204,7 +214,7 @@ namespace LettoreXml
 
         private dynamic getFullKeyMeasure(string query)
         {
-            return config.get(selectedDimName + "/" + query);
+            return config.get(resizeDefinition + "/" + query);
         }
 
 
