@@ -19,9 +19,9 @@ namespace LettoreXml
         private readonly Config config;
         private string resizeDefinition;
         private string sourceImgName;
-        private string imgPath;
+        //private string imgPath;
         private Image originalImage;
-        private Image resizedImage;
+        //private Image resizedImage;
         private ImageFormat imageFormat;
         //private string selectedDimName;
         private dynamic dynSelectedWidth;
@@ -71,7 +71,7 @@ namespace LettoreXml
 
                 //createTestImg(outputFileName);
 
-                resizeAndCropImageTest(outputFileName);
+                resizeAndCropImage(outputFileName);
             }
         }
 
@@ -108,7 +108,7 @@ namespace LettoreXml
         }
 
         //da ref. https://alex.domenici.net/archive/resize-and-crop-an-image-keeping-its-aspect-ratio-with-c-sharp
-        private void resizeAndCropImageTest(string outputFileName)
+        private void resizeAndCropImage(string outputFileName)
         {
             using (var target = new Bitmap(selectedWidth, selectedHeight))
             {
