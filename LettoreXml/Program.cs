@@ -14,8 +14,8 @@ namespace LettoreXml
             string fileName = "innerFolder/myConfig.xml";
             string query;
             dynamic val;
-            string imgName = "venezia.jpg";
-            string resizeDefinition = "thumbnail";
+            string imgName = "portrait.jpg"; //venezia.jpg  //portrait.jpg  //inesistente.jpg
+            string resizeDefinition = "thumbnail"; //thumbnail  //medium
             //string valueType;
 
             Console.WriteLine(Path.Combine(Directory.GetCurrentDirectory(), fileName));
