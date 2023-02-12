@@ -39,11 +39,15 @@ namespace LettoreXml
             ImageResize imageResize = new ImageResize(config);
             Console.Write("Enter image name to be edited or type 'exit': ");
             imgName = Console.ReadLine();
+            Console.Write("Enter resizeDefinition: ");
+            resizeDefinition= Console.ReadLine();
             while (imgName.CompareTo("exit") != 0)
             {
                 imageResize.resize(imgName, resizeDefinition);
                 Console.Write("Enter image name to be edited or type 'exit': ");
                 imgName = Console.ReadLine();
+                Console.Write("Enter resizeDefinition: ");
+                resizeDefinition = Console.ReadLine();
             }
 
         }
