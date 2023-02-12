@@ -41,6 +41,9 @@ namespace LettoreXml
         private const string ARCHIVE = "archive";
         private const string FILTERS = "filters";
 
+        private MemoryCache imagesCache = new MemoryCache("ImagesCache");
+        private CacheItemPolicy cacheItemPolicy = new CacheItemPolicy() { AbsoluteExpiration = DateTime.MaxValue };
+
         public ImageResize(Config config)
         {
             this.config = config;
@@ -337,7 +340,7 @@ namespace LettoreXml
 
         private bool setHeightRatioOk()
         {
-            originalOverResizedHeightRatio = (float)(originalImage.Height / selectedHeight);
+            originalOverResizedHeightRatio = (float)originalImage.Height / selectedHeight;
             return originalOverResizedHeightRatio> 0;
         }
 
@@ -375,9 +378,6 @@ namespace LettoreXml
         #endregion
 
         #region Caching System
-        private MemoryCache imagesCache = new MemoryCache("ImagesCache");
-        private CacheItemPolicy cacheItemPolicy = new CacheItemPolicy() { AbsoluteExpiration = DateTime.MaxValue };
-
         private bool imgNeedsEditing()
         {
             string imgToCheck = getOriginalImgFullPath();
@@ -407,7 +407,7 @@ namespace LettoreXml
 
         private string generateImagesCacheKey()
         {
-            return string.Concat(sourceImgName, "_", resizeDefinition);
+            return string.Concat(inputFolderPath, "_", sourceImgName, "_", resizeDefinition);
         }
         #endregion
     }
