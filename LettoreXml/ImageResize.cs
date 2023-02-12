@@ -54,7 +54,7 @@ namespace LettoreXml
             bool checksOk = inputParamsOk(fileName, resizeDefinition);
             if (checksOk)
             {
-                string outputFileName = outputFolderPath + fileName;
+                string outputFileName = outputFolderPath + resizeDefinition + "_" + fileName;
                 if (imgNeedsEditing())
                 {
                     resizeCropApplyFiltersToImage(outputFileName);
