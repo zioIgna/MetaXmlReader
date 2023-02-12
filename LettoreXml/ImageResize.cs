@@ -11,6 +11,8 @@ using System.Drawing.Imaging;
 using System.IO.Enumeration;
 using System.Drawing.Drawing2D;
 using System.Linq;
+using System.Runtime.Caching;
+using System.Runtime.Serialization;
 
 namespace LettoreXml
 {
@@ -51,59 +53,22 @@ namespace LettoreXml
             bool checksOk = inputParamsOk(fileName, resizeDefinition);
             if (checksOk)
             {
-                //Bitmap bitmap = new Bitmap(originalImage);
-                //Size resizingDims = new Size(selectedWidth, selectedHeight);
-                //resizedImage = (Image)new Bitmap(bitmap, resizingDims);
-
                 string outputFileName = outputFolderPath + fileName;
-
-                //using(var bmpImage = new Bitmap(originalImage))
+                if (imgNeedsEditing())
+                {
+                    resizeAndCropImage(outputFileName);
+                    upsertResizeDate();
+                }
+                //addTupleKey3(outputFileName);
+                //bool success = addTupleKey2(fileName, resizeDefinition);
+                //if (success)
                 //{
-                //    using (var bmpCrop = bmpImage.Clone(new Rectangle(0, 0, selectedWidth, selectedHeight), bmpImage.PixelFormat))
-                //    {
-                //        bmpCrop.Save(outputFileName);
-                //    }
+                //    DateTime editTime = (DateTime)imagesCache.Get(string.Concat(fileName, "_", resizeDefinition));
                 //}
-
-                //resizeImage(outputFileName);
-
-                //resizedImage.Dispose();
-
-                //createTestImg(outputFileName);
-
-                resizeAndCropImage(outputFileName);
             }
-        }
-
-        private void resizeImage(string outputFileName)
-        {
-            using (var nb = new Bitmap(selectedWidth, selectedHeight))
+            if (originalImage != null)
             {
-                using (Graphics graphics = Graphics.FromImage(nb))
-                {
-                    graphics.InterpolationMode = System.Drawing.Drawing2D.InterpolationMode.HighQualityBicubic;
-                    graphics.DrawImage(originalImage, 0, 0, selectedWidth, selectedHeight);
-
-                    nb.Save(outputFileName);
-                }
-            }
-        }
-
-        //da ref. https://alex.domenici.net/archive/resize-and-crop-an-image-keeping-its-aspect-ratio-with-c-sharp
-        private void createTestImg(string outputFileName)
-        {
-            using(var nb = new Bitmap(100, 100))
-            {
-                using (Graphics graphics = Graphics.FromImage(nb))
-                {
-                    graphics.InterpolationMode = System.Drawing.Drawing2D.InterpolationMode.HighQualityBicubic;
-                    //graphics.Clear(Color.White);
-                    //graphics.DrawImage()
-                    SolidBrush whiteBrush = new SolidBrush(Color.White);
-                    Rectangle rect = new Rectangle(0,0,50,50);
-                    graphics.FillRectangle(whiteBrush, rect);
-                    nb.Save(outputFileName);
-                }
+                originalImage.Dispose();
             }
         }
 
@@ -136,7 +101,10 @@ namespace LettoreXml
 
                     graphics.DrawImage(originalImage, -shiftX, -shiftY, newWidth, newHeight);
 
-                    new Bitmap(target).Save(outputFileName);
+                    using (var result = new Bitmap(target))
+                    {
+                        result.Save(outputFileName);
+                    }
                 }
             }
         }
@@ -179,37 +147,7 @@ namespace LettoreXml
             }
         }
 
-        static void FixImageOrientation(Image srce)
-        {
-            const int ExifOrientationId = 0x112;
-            // Read orientation tag
-            if (!srce.PropertyIdList.Contains(ExifOrientationId)) return;
-            var prop = srce.GetPropertyItem(ExifOrientationId);
-            // Force value to 1
-            prop.Value = BitConverter.GetBytes((short)1);
-            srce.SetPropertyItem(prop);
-        }
-
-        private bool setChosenRatioOk()
-        {
-            if (selectedCrop)
-            {
-                chosenRatio = originalOverResizedWidthRatio <= originalOverResizedHeightRatio ? originalOverResizedWidthRatio : originalOverResizedHeightRatio;
-            }
-            else
-            {
-                chosenRatio = originalOverResizedWidthRatio >= originalOverResizedHeightRatio ? originalOverResizedWidthRatio : originalOverResizedHeightRatio;
-            }
-            return chosenRatio > 0;
-        }
-
-        private bool loadImageFormatOk()
-        {
-            List<ImageFormat> allowedFormats= new List<ImageFormat>() { ImageFormat.Jpeg, ImageFormat.Png, ImageFormat.Gif };
-            imageFormat = originalImage.RawFormat;
-            return allowedFormats.Contains(imageFormat);
-        }
-
+        #region Input Params Check
         private bool inputParamsOk(string fileName, string resizeDefinition)
         {
             return
@@ -229,7 +167,6 @@ namespace LettoreXml
                 && setChosenRatioOk()
                 ;
         }
-
         private bool loadSourceImgNameOk(string fileName)
         {
             if (!string.IsNullOrEmpty(fileName))
@@ -238,7 +175,7 @@ namespace LettoreXml
                 return true;
             } return false;
         }
-
+        
         private bool loadResizeDefinitionOk(string resizeDefinition)
         {
             if (!string.IsNullOrEmpty(resizeDefinition))
@@ -319,6 +256,32 @@ namespace LettoreXml
             }
         }
 
+        private bool loadOriginalImageOk(string imgName)
+        {
+            string fullPath = Path.Combine(inputFolderPath, imgName);
+            if (File.Exists(fullPath))
+            {
+                originalImage = Image.FromFile(fullPath);
+                return true;
+            }
+            else
+            {
+                return false;
+            }
+        }
+        
+        private bool loadImageFormatOk()
+        {
+            List<ImageFormat> allowedFormats= new List<ImageFormat>() { ImageFormat.Jpeg, ImageFormat.Png, ImageFormat.Gif };
+            imageFormat = originalImage.RawFormat;
+            return allowedFormats.Contains(imageFormat);
+        }
+        
+        private bool setDimensionsRatioOk()
+        {
+            return (imgWidthOverHeight = (float)this.originalImage.Width / this.originalImage.Height) > 0;
+        }
+
         private bool calculateOutputDimsOk()
         {
             if (dimensionIsNumeric(dynSelectedWidth))
@@ -359,25 +322,6 @@ namespace LettoreXml
             return originalOverResizedHeightRatio> 0;
         }
 
-        private bool loadOriginalImageOk(string imgName)
-        {
-            string fullPath = Path.Combine(inputFolderPath, imgName);
-            if (File.Exists(fullPath))
-            {
-                originalImage = Image.FromFile(fullPath);
-                return true;
-            }
-            else
-            {
-                return false;
-            }
-        }
-        
-        private bool setDimensionsRatioOk()
-        {
-            return (imgWidthOverHeight = (float)this.originalImage.Width / this.originalImage.Height) > 0;
-        }
-
         private bool dimensionIsNumeric(dynamic val)
         {
             return (val.GetType() == typeof(int));
@@ -399,58 +343,120 @@ namespace LettoreXml
         {
             return config.get(resizeDefinition + "/" + query);
         }
+        
+        private bool setChosenRatioOk()
+        {
+            if (selectedCrop)
+            {
+                chosenRatio = originalOverResizedWidthRatio <= originalOverResizedHeightRatio ? originalOverResizedWidthRatio : originalOverResizedHeightRatio;
+            }
+            else
+            {
+                chosenRatio = originalOverResizedWidthRatio >= originalOverResizedHeightRatio ? originalOverResizedWidthRatio : originalOverResizedHeightRatio;
+            }
+            return chosenRatio > 0;
+        }
+        #endregion
 
+        #region Caching System
+        private MemoryCache imagesCache = new MemoryCache("ImagesCache");
+        private CacheItemPolicy cacheItemPolicy = new CacheItemPolicy() { AbsoluteExpiration = DateTime.MaxValue };
 
+        private bool addTupleKey(string imgName, string resizeDefinition)
+        {
+            string key = generateImagesCacheKey();
+            string extendedDateStr = Encoding.UTF8.GetString(originalImage.GetPropertyItem(0x0132).Value);
+            originalImage.GetPropertyItem(0x0132).Value = System.Text.Encoding.UTF8.GetBytes(DateTime.Now.ToString());
+            //originalImage.SetPropertyItem(originalImage.GetPropertyItem(0x0132));
+            string strippedDateStr = extendedDateStr.Substring(0, (extendedDateStr.IndexOf('\\')));  //extendedDateStr.Length - (extendedDateStr.Length -
+            DateTime srcImgEditTime = DateTime.ParseExact(strippedDateStr, "yyyy:MM:dd HH:mm:ss", System.Globalization.CultureInfo.InvariantCulture);
+            CacheItem cacheItem = new CacheItem(key, srcImgEditTime);
+            return imagesCache.Add(cacheItem, cacheItemPolicy);
+        }
 
-        //private void setDimensionName(string dimName)
+        private bool addTupleKey2(string imgName, string resizeDefinition)
+        {
+            string extendedDateStr = Encoding.UTF8.GetString(originalImage.GetPropertyItem(0x0132).Value);
+            int index = extendedDateStr.LastIndexOf(':') +3;
+            string strippedDateSTr = extendedDateStr.Substring(0,index);
+            DateTime srcImgEditTime = DateTime.ParseExact(strippedDateSTr,"yyyy:MM:dd HH:mm:ss",null);
+            return true;
+        }
+
+        private void addTupleKey3(string outputFileName)
+        {
+            if (File.Exists(outputFileName))
+            {
+                Console.WriteLine(File.GetLastWriteTime(outputFileName).ToString());
+            }
+        }
+
+        private bool imgNeedsEditing()
+        {
+            string imgToCheck = getOriginalImgFullPath();
+            string key = generateImagesCacheKey();
+            if (!imagesCache.Contains(key))
+            {
+                return true;
+            }
+            else
+            {
+                DateTime cachedDate = (DateTime)imagesCache.Get(key);
+                DateTime fileSystemDate = File.GetLastWriteTime(imgToCheck);
+                return DateTime.Compare(cachedDate, fileSystemDate) < 0;
+            }
+        }
+
+        private void upsertResizeDate()
+        {
+            var cacheItem = new CacheItem(generateImagesCacheKey(), File.GetLastWriteTime(getOriginalImgFullPath()));
+            imagesCache.Set(cacheItem, cacheItemPolicy);
+        }
+
+        private string getOriginalImgFullPath()
+        {
+            return inputFolderPath + sourceImgName;
+        }
+
+        private bool imgHasEditDate()
+        {
+            DateTime dateTimeToSet = DateTime.Now;
+            try
+            {
+                Encoding.UTF8.GetString(originalImage.GetPropertyItem(0x0132).Value);
+                return true;
+            }
+            catch (ArgumentException e)
+            {
+                //byte[] imgDateByteArr = BitConverter.GetBytes(dateTimeToSet.Ticks);
+                //string byteArrToStr = Encoding.UTF8.GetString((byte[])imgDateByteArr);
+                return false;
+            }
+        }
+
+        private void compareImgEditDate()
+        {
+            if(!imgHasEditDate())
+            {
+                byte[] imgDateByteArr = BitConverter.GetBytes(DateTime.Now.Ticks);
+                string byteArrToStr = Encoding.UTF8.GetString((byte[])imgDateByteArr);
+                originalImage.GetPropertyItem(0x0132).Value = imgDateByteArr;
+                //originalImage.SetPropertyItem(0x0132).Value
+            }
+        }
+
+        private string generateImagesCacheKey()
+        {
+            return string.Concat(sourceImgName, "_", resizeDefinition);
+        }
+
+        //private bool imgNeedsProcessing(string fileName, string resizeDefinition)
         //{
-        //    selectedDimName= dimName;
+        //    //ValueTuple<string, string> key
+        //    //return imagesCache.TryGetValue(fileName, out cacheItemPolicy);
+
         //}
 
-        //private void setDimensionWidth()
-        //{
-        //    selectedWidth = (int) config.get(selectedDimName + "/" + "width");
-        //}
-
-        //private void setDimensionHeight()
-        //{
-        //    selectedHeight = (int) config.get(selectedHeight+ "/" + "height");
-        //}
-
-        //private bool isNullValueDimension(string dimName)
-        //{
-        //    return config.get(selectedDimName + "/" + dimName) == null;
-        //}
-
-        //private bool dimensionNotNumeric(dynamic val)
-        //{
-        //    return (val.GetType() == typeof(string));
-        //}
-
-        //private int getNumericVal(string query)
-        //{
-        //    dynamic val = config.get(selectedDimName + "/" + query);
-        //    if (val != null)
-        //    {
-        //        return (int)val;
-        //    }
-        //    else
-        //    {
-        //        return -1;
-        //    }
-        //}
-
-        //private string getArchive()
-        //{
-        //    dynamic retVal = config.get("archive");
-        //    if (retVal != null)
-        //    {
-        //        return (string) retVal;
-        //    }
-        //    else
-        //    {
-        //        return null;
-        //    }
-        //}
+        #endregion
     }
 }

@@ -14,7 +14,7 @@ namespace LettoreXml
             string fileName = "innerFolder/myConfig.xml";
             string query;
             dynamic val;
-            string imgName = "portrait.jpg"; //venezia.jpg  //portrait.jpg  //inesistente.jpg
+            string imgName = "brux.jpg"; //venezia.jpg  //portrait.jpg  //inesistente.jpg
             string resizeDefinition = "thumbnail"; //thumbnail  //medium
             //string valueType;
 
@@ -37,7 +37,15 @@ namespace LettoreXml
             //} while (query.CompareTo("exit") != 0);
 
             ImageResize imageResize = new ImageResize(config);
-            imageResize.resize(imgName, resizeDefinition);
+            Console.Write("Enter image name to be edited or type 'exit': ");
+            imgName = Console.ReadLine();
+            while (imgName.CompareTo("exit") != 0)
+            {
+                imageResize.resize(imgName, resizeDefinition);
+                Console.Write("Enter image name to be edited or type 'exit': ");
+                imgName = Console.ReadLine();
+            }
+
         }
 
     }
